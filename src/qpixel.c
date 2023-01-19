@@ -203,10 +203,10 @@ int depth_test(device_t *device, int x, int y, float depth)
 void rasterize_scanline(device_t *device, scanline_t *scanline)
 {
     float y = scanline->y;
-    float x = scanline->p->ps.x;
-    int ix = ceilf(x), iy = y;
+    float x = scanline->l;
+    int ix = (int)ceilf(x), iy = y, ir = (int)floorf(scanline->r);
     vertex_t *v = vertex_split(scanline->p);
-    for (; x <= scanline->r; x += 1.0f)
+    for (; ix <= ir; ix ++)
     {
         color3_t color;
         // Test boundary
@@ -230,7 +230,6 @@ void rasterize_scanline(device_t *device, scanline_t *scanline)
         }
 
         vertex_add(scanline->p, scanline->step);
-        ix ++;
     }
     vertex_destroy(v);
 }
