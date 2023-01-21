@@ -8,9 +8,6 @@
 #include "qpixel.h"
 
 /* ========= GLOBAL INFO =========== */
-// #define MESH_FILE_NAME "./models/stanford-bunny.obj"
-// #define MESH_FILE_NAME "./models/teapot.obj"
-// #define MESH_FILE_NAME "./models/lucy.obj"
 #define MESH_FILE_NAME "./models/helmet.obj"
 
 float sample_vary[9];
