@@ -420,11 +420,14 @@ void rasterize_trapezoid(device_t *device, trapezoid_t *trap)
 
 // split triangle to trapezoids and draw
 void split_and_rasterize_triangle(device_t *device,
-                                  vertex_t *a,
-                                  vertex_t *b,
-                                  vertex_t *c
+                                  vertex_t *_a,
+                                  vertex_t *_b,
+                                  vertex_t *_c
                                   )
 {
+    vertex_t *a = vertex_split(_a);
+    vertex_t *b = vertex_split(_b);
+    vertex_t *c = vertex_split(_c);
     // y: a -> b -> c
     if (a->ps.y > b->ps.y) swap_ptrs((void **)&a, (void **)&b);
     if (a->ps.y > c->ps.y) swap_ptrs((void **)&a, (void **)&c);
@@ -432,7 +435,6 @@ void split_and_rasterize_triangle(device_t *device,
 
     // find the other point for trapezoid
     vertex_t *d = vertex_lerp(a, c, (b->ps.y - a->ps.y) / (c->ps.y - a->ps.y));
-    vertex_t *temp = d;
     if (b->ps.x > d->ps.x)
     {
         swap_ptrs((void **)&b, (void **)&d);
@@ -443,7 +445,10 @@ void split_and_rasterize_triangle(device_t *device,
     rasterize_trapezoid(device, &trap1);
     rasterize_trapezoid(device, &trap2);
 
-    vertex_destroy(temp);
+    vertex_destroy(a);
+    vertex_destroy(b);
+    vertex_destroy(c);
+    vertex_destroy(d);
 }
 
 void draw_triangle(device_t *device)
@@ -524,21 +529,16 @@ void draw_triangle(device_t *device)
 
     for (int i = 1; i < n_vertices - 1; i ++)
     {
-        vertex_t *a = vertex_split(&vertices[0]);
-        vertex_t *b = vertex_split(&vertices[i]);
-        vertex_t *c = vertex_split(&vertices[i + 1]);
-        // vs[0] = a->ps;
-        // vs[1] = b->ps;
-        // vs[2] = c->ps;
+        vs[0] = vertices[0].ps;
+        vs[1] = vertices[i].ps;
+        vs[2] = vertices[i + 1].ps;
         // back face culling
-        // if (!face_side(vs))
-        // {
+        if (!face_side(vs))
+        {
             // fragment shader
-            split_and_rasterize_triangle(device, a, b, c);
-        // }
-        vertex_destroy(a);
-        vertex_destroy(b);
-        vertex_destroy(c);
+            split_and_rasterize_triangle(device,
+                &vertices[0], &vertices[i], &vertices[i + 1]);
+        }
     }
     for (int i = 0; i < n_vertices; i ++)
     {
