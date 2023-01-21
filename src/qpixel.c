@@ -425,6 +425,8 @@ void split_and_rasterize_triangle(device_t *device,
                                   vertex_t *_c
                                   )
 {
+    device->triangle_count ++;
+
     vertex_t *a = vertex_split(_a);
     vertex_t *b = vertex_split(_b);
     vertex_t *c = vertex_split(_c);
@@ -577,6 +579,7 @@ void clear_buffer(device_t *device)
             *(depth_ptr ++) = 0.0f;
         }
     }
+    device->triangle_count = 0;
 }
 
 void draw_mesh(device_t *device, mesh_t *mesh)

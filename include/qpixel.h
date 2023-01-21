@@ -40,6 +40,7 @@ typedef struct device_t
     fragment_shader_t   fs;
 
     float debug[256];
+    uint32_t triangle_count;
 } device_t;
 
 typedef struct {

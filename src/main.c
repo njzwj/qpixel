@@ -240,7 +240,8 @@ void on_draw(HWND hwnd)
     // float *d = device.debug;
     // swprintf(debugInfo, 256, TEXT("%f %f %f\n%f"),
     //     d[0], d[1], d[2], d[3]);
-    swprintf(debugInfo, 256, TEXT("%.2f ms\n"), ms);
+    swprintf(debugInfo, 256, TEXT("%.2f fps\n%u triangles\n"),
+        1000.0f / ms, device.triangle_count);
     
     DrawText(hdc, debugInfo, -1, &rect,
                 DT_LEFT | DT_TOP );
