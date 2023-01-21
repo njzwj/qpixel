@@ -13,18 +13,19 @@
 // #define MESH_FILE_NAME "./models/lucy.obj"
 #define MESH_FILE_NAME "./models/helmet.obj"
 
-
-
 float sample_vary[9];
 
 int ready = 0;
 
 screen_t screen;
 device_t device;
-int mouseX = 0, mouseY = 0;
+int mouseX = 100, mouseY = 100;
+float distance = 3.0f;
 
 mesh_t *mesh;
 vec3_t mesh_c;
+
+clock_t last_tick = 0;
 
 void setup_render_info(device_t * device);
 
@@ -155,6 +156,22 @@ LRESULT CALLBACK WindowProc(HWND hwnd,
     case WM_MOUSEMOVE:
         mouseX = LOWORD(lParam);
         mouseY = HIWORD(lParam);
+        mouseX = mouseX >= 0 ? (mouseX < USER_WIDTH ? mouseX : USER_WIDTH - 1) : 0;
+        mouseY = mouseY >= 0 ? (mouseY < USER_HEIGHT ? mouseY : USER_HEIGHT - 1) : 0;
+        return 0;
+    
+    case WM_KEYUP:
+        switch (wParam)
+        {
+        case VK_UP:
+            distance /= 1.2f;
+            break;
+        case VK_DOWN:
+            distance *= 1.2f;
+            break;
+        defaut: break;
+        }
+        distance = distance < 0.5f ? 0.5f : distance;
         return 0;
 
     case WM_TIMER:
@@ -209,6 +226,11 @@ void on_draw(HWND hwnd)
     // FillRect(hdc, &ps.rcPaint, (HBRUSH) (COLOR_WINDOW+1));
     GetClientRect(hwnd, &rect);
     float dpi = GetDpiForSystem();
+
+    // calculate tick
+    clock_t current = clock();
+    float ms = (float)(current - last_tick) / CLOCKS_PER_MS;
+    last_tick = current;
     
     // swprintf(debugInfo, 256, TEXT("%ld, %ld, %ld, %ld\n%ld, %ld\n%f\n"),
     //     rect.left, rect.top, rect.right, rect.bottom,
@@ -218,9 +240,10 @@ void on_draw(HWND hwnd)
     // float *d = device.debug;
     // swprintf(debugInfo, 256, TEXT("%f %f %f\n%f"),
     //     d[0], d[1], d[2], d[3]);
-        
-    // DrawText(hdc, debugInfo, -1, &rect,
-    //             DT_LEFT | DT_TOP );
+    swprintf(debugInfo, 256, TEXT("%.2f ms\n"), ms);
+    
+    DrawText(hdc, debugInfo, -1, &rect,
+                DT_LEFT | DT_TOP );
     EndPaint(hwnd, &ps);
 
     t++;
@@ -242,13 +265,13 @@ typedef struct
 typedef struct
 {
     vec3_t normal;
-    vec2_t texcoord;
+    // vec2_t texcoord;
 } attribute_t;
 
 typedef struct
 {
     vec3_t normal;
-    vec2_t texcoord;
+    // vec2_t texcoord;
 } varying_t;
 
 void drawer_build_attribute(mesh_t *mesh, uint32_t fi, uniform_t *unif, attribute_t *attr)
@@ -270,7 +293,7 @@ void drawer_build_attribute(mesh_t *mesh, uint32_t fi, uniform_t *unif, attribut
     for (int i = 0; i < 3; i++)
     {
         attr[i].normal = vec3_mat_mul(mesh->normals[nidx[i] - 1], &unif->m_world);
-        attr[i].texcoord = mesh->texcoords[tidx[i] - 1];
+        // attr[i].texcoord = mesh->texcoords[tidx[i] - 1];
     }
 }
 
@@ -311,7 +334,7 @@ void vs(device_t *device, float *unif, float *attr, float *vary)
     varying_t *varyings = (varying_t *)vary;
 
     varyings->normal = attributes->normal;
-    varyings->texcoord = attributes->texcoord;
+    // varyings->texcoord = attributes->texcoord;
 }
 
 int sample_chessboard(vec2_t texcoord, int w, int h)
@@ -330,13 +353,13 @@ void fs(device_t *device, float *unif, float *vary, float w, color3_t *out)
     uniform_t *uniforms = (uniform_t *)unif;
     varying_t *varyings = (varying_t *)vary;
     
-    vec2_t t = varyings->texcoord;
-    vec3_t diffuse = (vec3_t){ 0.0f, 0.0f, 0.0f };
-    if (sample_chessboard(t, 32, 32))
-    {
-        diffuse = (vec3_t){ 0.5f, 0.5f, 0.5f };
-    }
-    // vec3_t diffuse = (vec3_t){ 0.5f, 0.5f, 0.5f };
+    // vec2_t t = varyings->texcoord;
+    // vec3_t diffuse = (vec3_t){ 0.0f, 0.0f, 0.0f };
+    // if (sample_chessboard(t, 32, 32))
+    // {
+    //     diffuse = (vec3_t){ 0.5f, 0.5f, 0.5f };
+    // }
+    vec3_t diffuse = (vec3_t){ 0.5f, 0.5f, 0.5f };
 
     float intensity = - vec3_dot(varyings->normal, uniforms->dir_light);
     intensity = clip_float(intensity, 0.0f, 1.0f);
@@ -393,8 +416,8 @@ void setup_scene(device_t * device)
 
 void render(device_t * device)
 {
-    float r = 2.0f;
-    float z = - (1.0f * mouseX / device->width - 0.5f) * PI;
+    float r = distance;
+    float z = - (1.5f * mouseX / device->width - 0.5f) * PI;
     float u = - (1.0f * mouseY / device->height - 0.5f) * PI;
     float ss = sinf(u);
     float cc = cosf(u);
