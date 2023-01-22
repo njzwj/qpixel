@@ -15,7 +15,7 @@
 
 typedef struct
 {
-    vec4_t pndc;        // point ndc (normalized)
+    vec4_t pndc;        // point homogeneous / ndc coord
     vec2_t ps;          // point screen
     float  w;           // 1/z
     float  *vary;       // varying
@@ -213,7 +213,7 @@ int depth_test(device_t *device, int x, int y, float depth)
 }
 
 
-int cvv_test_ndc(vec4_t v, cvv_type_t cvv_type)
+int homogeneous_clip_test(vec4_t v, cvv_type_t cvv_type)
 {
     int res = 0;
     float w = v.w;
@@ -250,7 +250,7 @@ int cvv_test_ndc(vec4_t v, cvv_type_t cvv_type)
  * @param cvv_type  CVV plane. cvv_type_t
  * @return vertex_t*    The intersection
  */
-vertex_t *cvv_intersect(vertex_t *a, vertex_t *b, cvv_type_t cvv_type)
+vertex_t *homogeneous_clip_intersect(vertex_t *a, vertex_t *b, cvv_type_t cvv_type)
 {
     vertex_t *c;
     vec4_t u = a->pndc;
@@ -291,16 +291,16 @@ vertex_t *cvv_intersect(vertex_t *a, vertex_t *b, cvv_type_t cvv_type)
  * @param cvv_type      The plane of CVV you want to use to cut the polygon.
  * @return int     Number of new polygon.
  */
-int cvv_culling(vertex_t *v, int n, cvv_type_t cvv_type)
+int homogeneous_clip(vertex_t *v, int n, cvv_type_t cvv_type)
 {
     int m = 0;
     vertex_t v_buffer[9];
-    int cvv_results[9];
+    int clip_results[9];
     int sum = 0;
     for (int i = 0; i < n; i ++)
     {
-        cvv_results[i] = cvv_test_ndc(v[i].pndc, cvv_type);
-        sum += cvv_results[i];
+        clip_results[i] = homogeneous_clip_test(v[i].pndc, cvv_type);
+        sum += clip_results[i];
     }
     if (sum == 0) return n;
 
@@ -309,7 +309,7 @@ int cvv_culling(vertex_t *v, int n, cvv_type_t cvv_type)
         vertex_t *a = v + i;
         vertex_t *b = v + ((i + 1) % n);
         vertex_t *c;
-        int cvv_a = cvv_results[i], cvv_b = cvv_results[(i + 1) % n];
+        int cvv_a = clip_results[i], cvv_b = clip_results[(i + 1) % n];
 
         if (!cvv_a && i == 0)
         {
@@ -318,7 +318,7 @@ int cvv_culling(vertex_t *v, int n, cvv_type_t cvv_type)
 
         if (cvv_a != cvv_b)
         {
-            c = cvv_intersect(a, b, cvv_type);
+            c = homogeneous_clip_intersect(a, b, cvv_type);
             v_buffer[m ++] = *c;
             free(c);
         }
@@ -334,7 +334,7 @@ int cvv_culling(vertex_t *v, int n, cvv_type_t cvv_type)
     {
         // free the varyings that the vertex is outside CVV
         //   since these points are removed from polygon and will never be used.
-        if (cvv_results[i] != 0)
+        if (clip_results[i] != 0)
         {
             free(v[i].vary);
         }
@@ -488,31 +488,28 @@ void draw_triangle(device_t *device)
                    );
     }
 
-    // CVV cliping
+    // w = 0 plane clipping
+
+    // homogeneous clipping
     int n_vertices = 3;
     vertex_t vertices[9], *v_temp;
     for (int i = 0; i < n_vertices; i ++)
     {
         float *_vary;
+        // NOTICE: only vs & z are placeholders and 
+        //    will be updated after clipping.
         v_temp = vertex_new(vndc[i], vs[i], z[i],
             device->vary + i * device->vary_size,
             device->vary_size);
-        // before interpolating, multiply varyings with 1/z
-        //   because *1/z space is linear
-        // _vary = v_temp->vary;
-        // for (int j = 0; j < v_temp->vary_size; j ++)
-        // {
-        //     *(_vary ++) *= v_temp->w;
-        // }
         vertices[i] = *v_temp;
         free(v_temp);
     }
-    n_vertices = cvv_culling(vertices, n_vertices, CVV_LEFT);
-    n_vertices = cvv_culling(vertices, n_vertices, CVV_RIGHT);
-    n_vertices = cvv_culling(vertices, n_vertices, CVV_TOP);
-    n_vertices = cvv_culling(vertices, n_vertices, CVV_BOTTOM);
-    n_vertices = cvv_culling(vertices, n_vertices, CVV_FRONT);
-    n_vertices = cvv_culling(vertices, n_vertices, CVV_REAR);
+    n_vertices = homogeneous_clip(vertices, n_vertices, CVV_LEFT);
+    n_vertices = homogeneous_clip(vertices, n_vertices, CVV_RIGHT);
+    n_vertices = homogeneous_clip(vertices, n_vertices, CVV_TOP);
+    n_vertices = homogeneous_clip(vertices, n_vertices, CVV_BOTTOM);
+    n_vertices = homogeneous_clip(vertices, n_vertices, CVV_FRONT);
+    n_vertices = homogeneous_clip(vertices, n_vertices, CVV_REAR);
 
     for (int i = 0; i < n_vertices; i ++)
     {
@@ -525,8 +522,10 @@ void draw_triangle(device_t *device)
             *(_vary ++) *= v_temp->w;
         }
         v_temp->pndc = vec4_normalize(v_temp->pndc);
-        v_temp->ps.x = clip_float(v_temp->pndc.x * 0.5f + 0.5f, 0, 1) * device->width;
-        v_temp->ps.y = clip_float(v_temp->pndc.y * 0.5f + 0.5f, 0, 1) * device->height;
+        v_temp->ps.x = \
+            clip_float(v_temp->pndc.x * 0.5f + 0.5f, 0, 1) * device->width;
+        v_temp->ps.y = \
+            clip_float(v_temp->pndc.y * 0.5f + 0.5f, 0, 1) * device->height;
     }
 
     for (int i = 1; i < n_vertices - 1; i ++)
