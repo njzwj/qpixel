@@ -9,6 +9,80 @@
 // MATH
 // ================================
 
+typedef enum
+{
+    CVV_LEFT = 1,
+    CVV_RIGHT = 2,
+    CVV_TOP = 4,
+    CVV_BOTTOM = 8,
+    CVV_FRONT = 16,
+    CVV_REAR = 32
+} cvv_type_t;
+
+/**
+ * @brief Judges if an AABB (Axis Aligned Bounding Box) is inside a half-plane
+ *      represented by a homogenenous normal. Such plane in Homogeneous space
+ *      always passes through (0, 0, 0, 0).
+ * 
+ * @param normal_homogenenous   Normal of the 4-dimensional plane
+ * @param aabb                  The aabb
+ * @return int                  The result. 1 if all inside. Otherwise 0.
+ */
+int homogeneous_half_plane_aabb(vec4_t normal_homogenenous, aabb_t aabb)
+{
+    vec4_t *n = &normal_homogenenous;
+    vec3_t *b = (vec3_t *)&aabb;
+    // project 8 corners to normal
+    for (int i = 0; i < 8; i ++)
+    {
+        float x = b[i & 1].x;
+        float y = b[(i >> 1) & 1].y;
+        float z = b[(i >> 2) & 1].z;
+        float dot = x * n->x + y * n->y + z * n->z + n->w;
+        if (dot < 0) return 0;
+    }
+    return 1;
+}
+
+/**
+ * @brief Get the homogeneous normal from projection matrix.
+ *      The direction of the normal is outside the Frustum
+ * 
+ * @param m_project     The projection matrix
+ * @param type          CVV type
+ * @return vec4_t       The expected normal
+ */
+vec4_t get_homogeneous_normal_from_projection(
+    mat4_t *m_project, cvv_type_t type)
+{
+    mat4_t *m = m_project;
+    vec4_t a;
+    vec4_t b = (vec4_t){ m->m[3][0], m->m[3][1], m->m[3][2], m->m[3][3] };
+    switch (type)
+    {
+    case CVV_LEFT:
+        a = (vec4_t){ -m->m[0][0], -m->m[0][1], -m->m[0][2], -m->m[0][3] };
+        break;
+    case CVV_RIGHT:
+        a = (vec4_t){ m->m[0][0], m->m[0][1], m->m[0][2], m->m[0][3] };
+        break;
+    case CVV_TOP:
+        a = (vec4_t){ -m->m[1][0], -m->m[1][1], -m->m[1][2], -m->m[1][3] };
+        break;
+    case CVV_BOTTOM:
+        a = (vec4_t){ m->m[1][0], m->m[1][1], m->m[1][2], m->m[1][3] };
+        break;
+    case CVV_FRONT:
+        a = (vec4_t){ -m->m[2][0], -m->m[2][1], -m->m[2][2], -m->m[2][3] };
+        break;
+    case CVV_REAR:
+        a = (vec4_t){ m->m[2][0], m->m[2][1], m->m[2][2], m->m[2][3] };
+        break;
+    default: break;
+    }
+    return (vec4_t){ a.x - b.x, a.y - b.y, a.z - b.z, a.w - b.w };
+}
+
 // =====================================================
 // RENDER
 // =====================================================
@@ -34,16 +108,6 @@ typedef struct
     vertex_t *p;
     vertex_t *step;
 } scanline_t;
-
-typedef enum
-{
-    CVV_LEFT = 1,
-    CVV_RIGHT = 2,
-    CVV_TOP = 4,
-    CVV_BOTTOM = 8,
-    CVV_FRONT = 16,
-    CVV_REAR = 32
-} cvv_type_t;
 
 // free a vertex
 void vertex_destroy(vertex_t *v)
@@ -368,6 +432,7 @@ void rasterize_scanline(device_t *device, scanline_t *scanline)
             // assert(v->w >= 0.0f && v->w <= 1.0f);
             if (depth_test(device, ix, iy, v->w))
             {
+                device->texel_count ++;
                 device->fs(device, device->unif, v->vary, v->w, &color);
                 fill_buffer(device, ix, iy, &color, v->w);
             }
@@ -579,9 +644,26 @@ void clear_buffer(device_t *device)
         }
     }
     device->triangle_count = 0;
+    device->texel_count = 0;
 }
 
 void draw_mesh(device_t *device, mesh_t *mesh)
 {
     device->drawer(device, mesh);
+}
+
+void draw_scene(device_t *device, scene_t *scene)
+{
+    for (int i = 0; i < scene->n_objects; i ++)
+    {
+        object3d_t * obj = scene->objects + i;
+        device->m_world = device->m_camera;
+        mat4_mul(&device->m_world, &obj->m_world);
+        draw_mesh(device, obj->mesh);
+    }
+}
+
+void object_update_m_world(object3d_t * obj)
+{
+    get_world_mat(&obj->m_world, obj->position, obj->rotation, obj->scale);
 }

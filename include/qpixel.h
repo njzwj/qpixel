@@ -23,6 +23,7 @@ typedef struct device_t
     color_buffer_t  colorBuffer;
     depth_buffer_t  depthBuffer;
     mat4_t          m_project;
+    mat4_t          m_camera;
     mat4_t          m_world;
     mat4_t          m_world_inv;
 
@@ -41,6 +42,7 @@ typedef struct device_t
 
     float debug[256];
     uint32_t triangle_count;
+    uint32_t texel_count;
 } device_t;
 
 typedef struct {
@@ -52,6 +54,29 @@ typedef struct {
     int             pitch;
 } screen_t;
 
+typedef struct
+{
+    vec3_t eye;
+    vec3_t target;
+    vec3_t up;
+    float  fov;
+    float  aspect;
+} camera_t;
+
+typedef struct
+{
+    mesh_t *mesh;
+    vec3_t position;
+    quat_t rotation;
+    vec3_t scale;
+    mat4_t m_world;
+} object3d_t;
+
+typedef struct
+{
+    int n_objects;
+    object3d_t *objects;
+} scene_t;
 
 /**
  * @brief This will use device->drawer to assemble uniforms, varyings, etc.
@@ -68,6 +93,15 @@ void draw_mesh(device_t *device, mesh_t *mesh);
  * @param device Device handle
  */
 void draw_triangle(device_t *device);
+
+
+/**
+ * @brief Draw scene
+ * 
+ * @param device    Device handle
+ * @param scene     Scene
+ */
+void draw_scene(device_t *device, scene_t *scene);
 
 
 /**
@@ -91,3 +125,11 @@ void setup_device(device_t *device,
  * @param device Device handle
  */
 void clear_buffer(device_t *device);
+
+
+/**
+ * @brief Update world matrix
+ * 
+ * @param obj Object
+ */
+void object_update_m_world(object3d_t * obj);

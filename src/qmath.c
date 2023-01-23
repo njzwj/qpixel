@@ -37,6 +37,28 @@ void get_lookat_mat(mat4_t * m, vec3_t eye, vec3_t center, vec3_t up)
     m->m[3][3] = 1.0f;
 }
 
+void get_world_mat(mat4_t * m, vec3_t translation, quat_t rotation,
+    vec3_t scale)
+{
+    mat4_t s;
+    // translation
+    get_identity_mat(m);
+    m->m[0][3] = translation.x;
+    m->m[1][3] = translation.y;
+    m->m[2][3] = translation.z;
+
+    // translation * rotation
+    mat4_from_quat(&s, rotation);
+    mat4_mul(m, &s);
+
+    // t * r * s
+    get_identity_mat(&s);
+    s.m[0][0] = scale.x;
+    s.m[1][1] = scale.y;
+    s.m[2][2] = scale.z;
+    mat4_mul(m, &s);
+}
+
 // Returns Determinant of MINOR
 float calc_det3(mat4_t * m, int r, int c)
 {
@@ -78,6 +100,23 @@ float calc_adjugate_mat(mat4_t * m, mat4_t * out)
         det += out->m[i][0] * m->m[0][i];
     }
     return det;
+}
+
+void mat4_mul(mat4_t * a, mat4_t * b)
+{
+    mat4_t res;
+    for (int i = 0; i < 4; i ++)
+    {
+        for (int j = 0; j < 4; j ++)
+        {
+            res.m[i][j] = 0;
+            for (int k = 0; k < 4; k ++)
+            {
+                res.m[i][j] += a->m[i][k] * b->m[k][j];
+            }
+        }
+    }
+    memcpy(a, &res, sizeof(mat4_t));
 }
 
 // A' = A* / det(A)
@@ -195,4 +234,32 @@ vec3_t vec3_clip(vec3_t v, float a, float b)
     r.y = clip_float(v.y, a, b);
     r.z = clip_float(v.z, a, b);
     return r;
+}
+
+quat_t quat_from_axis_angle(vec3_t u, float theta)
+{
+    float t_2 = 0.5f * theta;
+    float c = cosf(t_2);
+    float s = sinf(t_2);
+    return (quat_t){ c, s * u.x, s * u.y, s * u.z };
+}
+
+void mat4_from_quat(mat4_t * m, quat_t q)
+{
+    float x = q.x, y = q.y, z = q.z, w = q.w;
+    float x2 = x * x, y2 = y * y, z2 = z * z;
+    memset(m->m, 0, 16 * sizeof(float));
+    m->m[0][0] = 1 - 2 * y2 - 2 * z2;
+    m->m[0][1] = 2 * x * y - 2 * z * w;
+    m->m[0][2] = 2 * x * z + 2 * y * w;
+    
+    m->m[1][0] = 2 * x * y + 2 * z * w;
+    m->m[1][1] = 1 - 2 * x2 - 2 * z2;
+    m->m[1][2] = 2 * y * z - 2 * x * w;
+
+    m->m[2][0] = 2 * x * z - 2 * y * w;
+    m->m[2][1] = 2 * y * z + 2 * x * w;
+    m->m[2][2] = 1 - 2 * x2 - 2 * y2;
+
+    m->m[3][3] = 1;
 }

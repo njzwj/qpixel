@@ -6,6 +6,8 @@ typedef struct { float x, y, z, w; } vec4_t;
 typedef struct { float x, y, z; } vec3_t;
 typedef struct { float x, y; } vec2_t;
 typedef struct { float m[4][4]; } mat4_t;
+typedef struct { vec3_t v1, v2; } aabb_t;
+typedef struct { float w, x, y, z; } quat_t;
 
 /**
  * @brief Writes an identity matrix to m
@@ -36,6 +38,17 @@ void get_projection_mat(mat4_t * m, float fov, float a, float n, float f);
 void get_lookat_mat(mat4_t * m, vec3_t eye, vec3_t center, vec3_t up);
 
 /**
+ * @brief Get the world matrix
+ * 
+ * @param m     Output matrix
+ * @param translation       Translation
+ * @param rotation          Rotation (quaternion)
+ * @param scale             Scale (in porpotion)
+ */
+void get_world_mat(mat4_t * m, vec3_t translation, quat_t rotation,
+    vec3_t scale);
+
+/**
  * @brief Calculate the residual det 
  * 
  * @param m  The matrix
@@ -46,6 +59,14 @@ void get_lookat_mat(mat4_t * m, vec3_t eye, vec3_t center, vec3_t up);
 float calc_det3(mat4_t * m, int r, int c);
 
 float calc_adjugate_mat(mat4_t * m, mat4_t * out);
+
+/**
+ * @brief Mat4 multiply, a <- a * b
+ * 
+ * @param a     Mat a
+ * @param b     Mat b
+ */
+void mat4_mul(mat4_t * a, mat4_t * b);
 
 void calc_inv_mat(mat4_t * m, mat4_t * out);
 
@@ -80,3 +101,29 @@ vec3_t vec3_normalize(vec3_t v);
 vec3_t vec3_mat_mul(vec3_t, mat4_t *);
 
 vec3_t vec3_clip(vec3_t v, float a, float b);
+
+/**
+ * @brief Calculates new aabb after the translation
+ * 
+ * @param aabb 
+ * @param m 
+ * @return aabb_t 
+ */
+aabb_t aabb_mat_mul(aabb_t aabb, mat4_t * m);
+
+/**
+ * @brief Converts axis-angle rotation to quaternion
+ * 
+ * @param u         The axis (normalized)
+ * @param theta     The rotation
+ * @return quat_t   Quaternion
+ */
+quat_t quat_from_axis_angle(vec3_t u, float theta);
+
+/**
+ * @brief Get rotation matrix from normalized quaternion
+ * 
+ * @param m     Output matrix
+ * @param q     Quaterion (normalized)
+ */
+void mat4_from_quat(mat4_t * m, quat_t q);

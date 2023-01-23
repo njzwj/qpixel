@@ -8,7 +8,9 @@
 #include "qpixel.h"
 
 /* ========= GLOBAL INFO =========== */
-#define MESH_FILE_NAME "./models/helmet.obj"
+// #define MESH_FILE_NAME "./models/helmet.obj"
+#define MESH_FILE_NAME "./models/cube.obj"
+#define N_OBJECT_MAX 256
 
 float sample_vary[9];
 
@@ -16,11 +18,11 @@ int ready = 0;
 
 screen_t screen;
 device_t device;
+scene_t scene;
 int mouseX = 100, mouseY = 100;
-float distance = 3.0f;
+float distance = 20.0f;
 
 mesh_t *mesh;
-vec3_t mesh_c;
 
 clock_t last_tick = 0;
 
@@ -237,8 +239,8 @@ void on_draw(HWND hwnd)
     // float *d = device.debug;
     // swprintf(debugInfo, 256, TEXT("%f %f %f\n%f"),
     //     d[0], d[1], d[2], d[3]);
-    swprintf(debugInfo, 256, TEXT("%.2f fps\n%u triangles\n"),
-        1000.0f / ms, device.triangle_count);
+    swprintf(debugInfo, 256, TEXT("%.2f fps\n%u triangles\n%u texels\n"),
+        1000.0f / ms, device.triangle_count, device.texel_count);
     
     DrawText(hdc, debugInfo, -1, &rect,
                 DT_LEFT | DT_TOP );
@@ -290,7 +292,9 @@ void drawer_build_attribute(mesh_t *mesh, uint32_t fi, uniform_t *unif, attribut
     
     for (int i = 0; i < 3; i++)
     {
-        attr[i].normal = vec3_mat_mul(mesh->normals[nidx[i] - 1], &unif->m_world);
+        attr[i].normal = vec3_normalize(
+            vec3_mat_mul(mesh->normals[nidx[i] - 1], &unif->m_world)
+        );
         // attr[i].texcoord = mesh->texcoords[tidx[i] - 1];
     }
 }
@@ -382,32 +386,45 @@ void setup_render_info(device_t * device)
     device->vs = &vs;
     device->fs = &fs;
 
-    get_projection_mat(&device->m_project, 90.0,
+    get_projection_mat(&device->m_project, 45.0,
         (float)USER_WIDTH / USER_HEIGHT,
-        1.0f, 10.0f);
+        1.0f, 100.0f);
     get_lookat_mat(&device->m_world, (vec3_t){ 0.0f, 0.0f, 3.0f }, (vec3_t){0.0f, 0.0f, 0.0f}, (vec3_t){0.0f, 1.0f, 0.0f});
-    calc_inv_mat(&device->m_world, &device->m_world_inv);
+    // calc_inv_mat(&device->m_world, &device->m_world_inv);
+}
+
+/**
+ * @brief Get random float between a and b
+ * 
+ * @return float  Random number
+ */
+inline float rfloat(float a, float b)
+{
+    return ((float)rand() / RAND_MAX) * (b - a) + a;
 }
 
 void setup_scene(device_t * device)
 {
-    // uniform_t *uniforms = (uniform_t *)device->unif;
-    // attribute_t *attributes = (attribute_t *)device->attr;
-    // varying_t *varyings = (varying_t *)device->vary;
-    // vec3_t *v = device->vertex;
-
-    // float z = (1.0f * mouseX / device->width - 0.5f) * 10.0f;
-
-    // uniforms[0].t = 0.0f;
-    // attributes[0].color = (color3_t){ 1.0f, 0.5f, 0.5f };
-    // attributes[1].color = (color3_t){ 1.0f, 1.0f, 0.5f };
-    // attributes[2].color = (color3_t){ 0.5f, 0.5f, 1.0f };
-    // v[0] = (vec3_t){  0.0f,  1.0f,  0.0f };
-    // v[1] = (vec3_t){ -2.0f, -1.0f,  0.0f };
-    // v[2] = (vec3_t){  2.0f, -1.0f,  0.0f };
-
     mesh = load_mesh(MESH_FILE_NAME);
-    mesh_c = mesh_center(mesh);
+
+    scene.n_objects = N_OBJECT_MAX;
+    scene.objects = calloc(N_OBJECT_MAX, sizeof(object3d_t));
+
+    srand((unsigned int)time(NULL));
+    for (int i = 0; i < N_OBJECT_MAX; i ++)
+    {
+        object3d_t * obj = scene.objects + i;
+        obj->mesh = mesh;
+        obj->position = \
+            (vec3_t){ rfloat(-5, 5), rfloat(-5, 5), rfloat(-5, 5) };
+        obj->scale = \
+            (vec3_t){ rfloat(0.1, 0.2), rfloat(0.1, 0.2), rfloat(0.1, 0.2) };
+        obj->rotation = \
+            quat_from_axis_angle(vec3_normalize(
+                (vec3_t){ rfloat(-1, 1), rfloat(-1, 1), rfloat(-1, 1) }
+            ), rfloat(0, PI));
+        object_update_m_world(obj);
+    }
     
     ready = 1;
 }
@@ -415,19 +432,19 @@ void setup_scene(device_t * device)
 void render(device_t * device)
 {
     float r = distance;
-    float z = - (1.5f * mouseX / device->width - 0.5f) * PI;
-    float u = - (1.0f * mouseY / device->height - 0.5f) * PI;
+    float z = (1.5f * mouseX / device->width - 0.75f) * PI;
+    float u = (1.0f * mouseY / device->height - 0.5f) * PI;
     float ss = sinf(u);
     float cc = cosf(u);
     float s = sinf(z) * cc * r;
     float c = cosf(z) * cc * r;
     float ya = 1.5f;
 
-    vec3_t eye = (vec3_t){ s, c, ss * r };
-    vec3_t tar = mesh_c;
+    vec3_t eye = (vec3_t){ - s, ss * r, c };
+    vec3_t tar = (vec3_t){ 0.0, 0.0, 0.0 };
     eye = vec3_add(eye, tar);
-    get_lookat_mat(&device->m_world, eye, tar, (vec3_t){0.0f, 0.0f, -1.0f});
+    get_lookat_mat(&device->m_camera, eye, tar, (vec3_t){0.0f, 1.0f, 0.0f});
 
     clear_buffer(device);
-    draw_mesh(device, mesh);
+    draw_scene(device, &scene);
 }

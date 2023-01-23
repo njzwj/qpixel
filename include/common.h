@@ -13,4 +13,4 @@
 
 const clock_t CLOCKS_PER_MS = CLOCKS_PER_SEC / 1000;
 
-const clock_t MIN_RESET = 1000 / 15;
+const clock_t MIN_RESET = 1000 / 30;
