@@ -12,7 +12,7 @@ typedef struct { float b, g, r; } color3_t;
 
 typedef struct device_t device_t;
 
-typedef void (*drawer_t)(device_t *device, mesh_t *mesh);
+typedef void (*drawer_t)(device_t *device, mesh_t *mesh, void *material);
 typedef void (*vertex_shader_t)(device_t *device, float *unif, float *attr, float *vary);
 typedef void (*fragment_shader_t)(device_t *device, float *unif, float *vary, float w, color3_t * out);
 
@@ -41,6 +41,7 @@ typedef struct device_t
     fragment_shader_t   fs;
 
     float debug[256];
+    uint32_t object_count;
     uint32_t triangle_count;
     uint32_t texel_count;
 } device_t;
@@ -66,6 +67,8 @@ typedef struct
 typedef struct
 {
     mesh_t *mesh;
+    void   *material;
+
     vec3_t position;
     quat_t rotation;
     vec3_t scale;
@@ -75,16 +78,26 @@ typedef struct
 typedef struct
 {
     int n_objects;
-    object3d_t *objects;
+    object3d_t **objects;
 } scene_t;
+
+/**
+ * @brief Draw scene
+ * 
+ * @param device    Device handle
+ * @param scene     Scene
+ */
+void draw_scene(device_t *device, scene_t *scene);
+
 
 /**
  * @brief This will use device->drawer to assemble uniforms, varyings, etc.
  * 
  * @param device  Device Handle
  * @param mesh  Mesh
+ * @param material The pointer to material
  */
-void draw_mesh(device_t *device, mesh_t *mesh);
+void draw_mesh(device_t *device, mesh_t *mesh, void *material);
 
 
 /**
@@ -94,14 +107,6 @@ void draw_mesh(device_t *device, mesh_t *mesh);
  */
 void draw_triangle(device_t *device);
 
-
-/**
- * @brief Draw scene
- * 
- * @param device    Device handle
- * @param scene     Scene
- */
-void draw_scene(device_t *device, scene_t *scene);
 
 
 /**

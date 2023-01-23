@@ -543,6 +543,9 @@ void draw_triangle(device_t *device)
         vs[i].y = clip_float(vndc[i].y * 0.5f + 0.5f, 0, 1) * device->height;
     }
 
+    // memcpy(device->debug, vndc, 12 * sizeof(float));
+    // device->debug[0] = 100.0;
+
     // vertex shader
     for (int i = 0; i < 3; i++)
     {
@@ -643,23 +646,27 @@ void clear_buffer(device_t *device)
             *(depth_ptr ++) = 0.0f;
         }
     }
+    device->object_count = 0;
     device->triangle_count = 0;
     device->texel_count = 0;
 }
 
-void draw_mesh(device_t *device, mesh_t *mesh)
+void draw_mesh(device_t *device, mesh_t *mesh, void *material)
 {
-    device->drawer(device, mesh);
+    // device->debug[0] = 99.0;
+    device->drawer(device, mesh, material);
+    device->object_count ++;
 }
 
 void draw_scene(device_t *device, scene_t *scene)
 {
     for (int i = 0; i < scene->n_objects; i ++)
     {
-        object3d_t * obj = scene->objects + i;
+        object3d_t * obj = scene->objects[i];
         device->m_world = device->m_camera;
         mat4_mul(&device->m_world, &obj->m_world);
-        draw_mesh(device, obj->mesh);
+        // memcpy(device->debug, &device->m_world, 16 * sizeof(float));
+        draw_mesh(device, obj->mesh, obj->material);
     }
 }
 
