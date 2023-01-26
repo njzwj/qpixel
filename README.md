@@ -8,9 +8,11 @@
 1. Homogeneous space clipping
 1. Backface culling
 1. GDI demo (win32 only)
+1. Draw loop at specific fps (if possible)
 
 ## TODO
 
+1. Animation mechanism
 1. CVV culling
 1. Texture support
 1. Physical based rendering

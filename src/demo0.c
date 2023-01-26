@@ -31,7 +31,8 @@ typedef struct
 } demo_t;
 
 demo_t demo;
-clock_t last_tick;
+clock_t last_tick = 0;
+clock_t should_tick = 0;
 
 
 /**
@@ -86,7 +87,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd,
             return 0;
         }
     case WM_DESTROY:
-        KillTimer(hwnd, 1);
+        // KillTimer(hwnd, 1);
         PostQuitMessage(0);
         return 0;
 
@@ -111,7 +112,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd,
     case WM_TIMER:
         // Fix window size & redraw
         // SetWindowPos(hwnd, NULL, 0, 0, USER_WIDTH, USER_HEIGHT, SWP_NOMOVE);
-        InvalidateRect(hwnd, NULL, TRUE);
+        // InvalidateRect(hwnd, NULL, TRUE);
         return 0;
 
     }
@@ -178,14 +179,27 @@ int WINAPI wWinMain(HINSTANCE hInstance,
     ShowWindow(hwnd, nCmdShow);
     UpdateWindow(hwnd);
 
-    // Run the message loop.
-    SetTimer(hwnd, 1, MIN_RESET, NULL);
+    // Run the message loop. 
+    // SetTimer(hwnd, 1, MIN_RESET, NULL);
 
     MSG msg = { };
-    while (GetMessage(&msg, NULL, 0, 0) > 0)
+    while (1)
     {
-        TranslateMessage(&msg);
-        DispatchMessage(&msg);
+        if (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE))
+        {
+            TranslateMessage(&msg);
+            DispatchMessage(&msg);
+        }
+        else
+        {
+            
+            clock_t current = clock();
+            clock_t diff_tick = current - last_tick;
+            if (diff_tick >= should_tick - 10 * CLOCKS_PER_MS)
+            {
+                InvalidateRect(hwnd, NULL, TRUE);
+            }
+        }
     }
 
     return 0;
@@ -355,6 +369,16 @@ int init_dib(HWND hwnd)
 
 void on_draw(HWND hwnd)
 {
+    static float fps_mean = 0.0f;
+    clock_t current = clock();
+    clock_t diff_tick = current - last_tick;
+    should_tick = should_tick + MIN_RESET * CLOCKS_PER_MS - diff_tick;
+    float ms = (float)diff_tick / CLOCKS_PER_MS;
+    last_tick = current;
+
+    fps_mean = 1000.0f / ms;
+
+    InvalidateRect(hwnd, NULL, TRUE);
     PAINTSTRUCT ps;
     HDC hdc = BeginPaint(hwnd, &ps);
     RECT rect;
@@ -365,13 +389,12 @@ void on_draw(HWND hwnd)
     
     // Draw debug info
     WCHAR debugInfo[256];
-    clock_t current = clock();
     device_t *dev = &demo.device;
     GetClientRect(hwnd, &rect);
-    float ms = (float)(current - last_tick) / CLOCKS_PER_MS;
-    last_tick = current;
+
+
     swprintf(debugInfo, 256, TEXT("%.2f fps\n%u triangles\n%u texels\n%u objects\n%f %f %f %f\n%f %f %f %f\n%f %f %f %f\n%f %f %f %f\n"),
-        1000.0f / ms, demo.device.triangle_count, demo.device.texel_count,
+        fps_mean, demo.device.triangle_count, demo.device.texel_count,
         demo.device.object_count,
         dev->debug[0], dev->debug[1], dev->debug[2], dev->debug[3],
         dev->debug[4], dev->debug[5], dev->debug[6], dev->debug[7],
