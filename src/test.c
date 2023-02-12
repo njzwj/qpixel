@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include "qmesh.h"
+#include "qtga.h"
 
 #define MESH_PATH "./models/helmet.obj"
 
@@ -7,6 +8,8 @@ mesh_t *mesh = NULL;
 
 int main()
 {
+
+    /*
     mesh = load_mesh(MESH_PATH);
 
     if (!mesh)
@@ -46,6 +49,13 @@ int main()
         printf(" ");
     }
     puts("");
+    */
+
+    tga_t *tga_image;
+    
+    tga_image = read_tga("./models/helmet_basecolor.tga");
+
+    brief_tga_header(&tga_image->header);
 
     return 0;
 }
